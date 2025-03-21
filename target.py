@@ -5,60 +5,68 @@ class Target:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.prev_pos = (x, y)
-        self.last_move_dir = pygame.math.Vector2(1, 0)
+        self.speed = 3
         self.shield_angle = 0
-        self.shield_fov = math.radians(60)
-        self.shield_radius = 25
-        self.hit_timer = 0
+        self.last_move_dir = pygame.math.Vector2(1, 0)
+        self.radius = 12
+        self.shield_rotate_speed = 0.1  # radians per frame
+        self.joystick = None
+
+        # Initialize joystick if available
+        pygame.joystick.init()
+        if pygame.joystick.get_count() > 0:
+            self.joystick = pygame.joystick.Joystick(0)
+            self.joystick.init()
 
     def update(self):
-        mx, my = pygame.mouse.get_pos()
+        keys = pygame.key.get_pressed()
+        dx = (keys[pygame.K_d] - keys[pygame.K_a]) * self.speed
+        dy = (keys[pygame.K_s] - keys[pygame.K_w]) * self.speed
 
-        # Calculate movement before updating position
-        dx = mx - self.x
-        dy = my - self.y
+        # Controller input for movement
+        if self.joystick:
+            dx += self.joystick.get_axis(0) * self.speed
+            dy += self.joystick.get_axis(1) * self.speed
 
         if dx != 0 or dy != 0:
-            self.shield_angle = math.atan2(dy, dx)
+            self.x += dx
+            self.y += dy
             self.last_move_dir = pygame.math.Vector2(dx, dy).normalize()
 
-        self.prev_pos = (self.x, self.y)
-        self.x, self.y = mx, my
+        # Rotate shield with arrow keys
+        if keys[pygame.K_RIGHT]:
+            self.shield_angle += self.shield_rotate_speed
+        if keys[pygame.K_LEFT]:
+            self.shield_angle -= self.shield_rotate_speed
 
-        if self.hit_timer > 0:
-            self.hit_timer -= 1
+        # Controller input for shield aim
+        if self.joystick:
+            aim_x = self.joystick.get_axis(2)
+            aim_y = self.joystick.get_axis(3)
+            if abs(aim_x) > 0.2 or abs(aim_y) > 0.2:
+                self.shield_angle = math.atan2(aim_y, aim_x)
 
     def draw(self, screen):
-        self.draw_shield(screen)
-        color = (0, 255, 0) if self.hit_timer == 0 else (255, 255, 255)
-        pygame.draw.circle(screen, color, (int(self.x), int(self.y)), 10)
+        pygame.draw.circle(screen, (0, 255, 0), (int(self.x), int(self.y)), self.radius)
 
-    def draw_shield(self, screen):
-        arc_radius = self.shield_radius
-        arc_angle = self.shield_fov
+        # Draw shield arc
+        shield_radius = self.radius + 10
+        arc_angle = math.radians(60)
         start_angle = self.shield_angle - arc_angle / 2
-        num_segments = 10
-
-        points = [(self.x, self.y)]
-        for i in range(num_segments + 1):
-            theta = start_angle + (i / num_segments) * arc_angle
-            px = self.x + arc_radius * math.cos(theta)
-            py = self.y + arc_radius * math.sin(theta)
-            points.append((px, py))
-
-        pygame.draw.polygon(screen, (0, 200, 255), points)
+        end_angle = self.shield_angle + arc_angle / 2
+        rect = pygame.Rect(self.x - shield_radius, self.y - shield_radius, shield_radius * 2, shield_radius * 2)
+        pygame.draw.arc(screen, (0, 200, 255), rect, start_angle, end_angle, 4)
 
     def is_bullet_blocked(self, bullet):
         dx = bullet.x - self.x
         dy = bullet.y - self.y
         distance = math.hypot(dx, dy)
-        if distance > self.shield_radius + bullet.radius:
+        if distance > self.radius + 14:
             return False
 
         angle_to_bullet = math.atan2(dy, dx)
-        angle_diff = (angle_to_bullet - self.shield_angle + math.pi) % (2 * math.pi) - math.pi
-        return abs(angle_diff) <= self.shield_fov / 2
+        angle_diff = abs((angle_to_bullet - self.shield_angle + math.pi) % (2 * math.pi) - math.pi)
+        return angle_diff < math.radians(30)
 
     def hit(self):
-        self.hit_timer = 10
+        print("Player was hit!")
