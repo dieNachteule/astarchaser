@@ -139,21 +139,6 @@ class Chaser:
         if self.hit_flash > 0:
             self.hit_flash -= 1
 
-        if self.last_seen:
-            lx, ly = self.last_seen
-            dir = self.last_seen_dir.normalize()
-            end_pos = (lx + dir.x * 30, ly + dir.y * 30)
-            pygame.draw.line(screen, (255, 255, 0), (lx, ly), end_pos, 2)
-
-        for point in self.corner_checks:
-            pygame.draw.circle(screen, (100, 100, 255), (int(point[0]), int(point[1])), 4)
-
-        if self.hp > 0 and (self.exploring or self.corner_checks):
-            font = pygame.font.SysFont(None, 24)
-            text = font.render("?", True, (255, 255, 0))
-            text_rect = text.get_rect(center=(int(self.x), int(self.y) - 18))
-            screen.blit(text, text_rect)
-
     def draw_fov_wedge(self, screen):
         if self.hp <= 0:
             return
