@@ -3,6 +3,7 @@ import math
 
 class Bullet:
     def __init__(self, x, y, target_x, target_y, speed=5, source=None):
+        self.alive = True
         self.x = x
         self.y = y
         dx = target_x - x
@@ -13,9 +14,16 @@ class Bullet:
         self.radius = 4
         self.source = source
 
-    def update(self):
-        self.x += self.velocity_x
-        self.y += self.velocity_y
+    def update(self, grid_map=None):
+        next_x = self.x + self.velocity_x
+        next_y = self.y + self.velocity_y
+
+        if grid_map and not grid_map.is_walkable(next_x, next_y):
+            self.alive = False
+            return
+
+        self.x = next_x
+        self.y = next_y
 
     def draw(self, screen):
         pygame.draw.circle(screen, (255, 255, 0), (int(self.x), int(self.y)), self.radius)

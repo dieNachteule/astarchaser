@@ -25,6 +25,7 @@ bullets = []
 running = True
 while running:
     screen.fill((0, 0, 0))
+    grid_map.draw(screen)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -38,38 +39,17 @@ while running:
         chaser.draw(screen)
 
     for bullet in bullets[:]:
-        bullet.update()
-
-        if bullet.is_off_screen():
+        bullet.update(grid_map)
+        if not bullet.alive or bullet.is_off_screen(WIDTH, HEIGHT):
             bullets.remove(bullet)
             continue
 
         if target.is_bullet_blocked(bullet):
-            bullet.reflect_from_shield(target.shield_angle)
-            bullet.source = None
-            continue
-
-        if bullet.collides_with(target):
-            target.hit()
             bullets.remove(bullet)
             continue
 
-        for chaser in chasers[:]:
-            if bullet.collides_with(chaser) and bullet.source != chaser:
-                chaser.take_damage()
-                bullets.remove(bullet)
-                if chaser.hp <= 0:
-                    chasers.remove(chaser)
-                break
-        else:
-            bullet.draw(screen)
-
-    for obstacle in obstacles:
-        pygame.draw.rect(screen, (100, 100, 100), obstacle)
+        bullet.draw(screen)
 
     target.draw(screen)
-
     pygame.display.flip()
     clock.tick(60)
-
-pygame.quit()

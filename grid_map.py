@@ -1,64 +1,65 @@
 import pygame
-import heapq
-
-TILE_SIZE = 20
-GRID_WIDTH = 800 // TILE_SIZE
-GRID_HEIGHT = 600 // TILE_SIZE
-
-def heuristic(a, b):
-    return abs(a[0] - b[0]) + abs(a[1] - b[1])  # Manhattan distance
+TILE_SIZE = 40
+GRID_WIDTH = 20
+GRID_HEIGHT = 15
 
 class GridMap:
     def __init__(self, obstacles):
-        self.obstacles = obstacles
         self.grid = [[True for _ in range(GRID_HEIGHT)] for _ in range(GRID_WIDTH)]
-        self._build_grid()
-
-    def _build_grid(self):
-        for x in range(GRID_WIDTH):
-            for y in range(GRID_HEIGHT):
-                rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-                for obstacle in self.obstacles:
-                    if rect.colliderect(obstacle):
-                        self.grid[x][y] = False
-                        break
+        self.obstacles = obstacles
+        for rect in obstacles:
+            if isinstance(rect, pygame.Rect):
+                for x in range(rect.left, rect.right, TILE_SIZE):
+                    for y in range(rect.top, rect.bottom, TILE_SIZE):
+                        gx = x // TILE_SIZE
+                        gy = y // TILE_SIZE
+                        if 0 <= gx < GRID_WIDTH and 0 <= gy < GRID_HEIGHT:
+                            self.grid[gx][gy] = False
+            else:
+                print(f"⚠️ Invalid obstacle format: {rect}")
 
     def is_walkable(self, x, y):
-        return 0 <= x < GRID_WIDTH and 0 <= y < GRID_HEIGHT and self.grid[x][y]
+        gx = int(x) // TILE_SIZE
+        gy = int(y) // TILE_SIZE
+        return 0 <= gx < GRID_WIDTH and 0 <= gy < GRID_HEIGHT and self.grid[gx][gy]
+
+    def neighbors(self, x, y):
+        for dx, dy in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < GRID_WIDTH and 0 <= ny < GRID_HEIGHT and self.grid[nx][ny]:
+                yield nx, ny
+
+    def heuristic(self, a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
     def find_path(self, start, goal):
-        start = (start[0] // TILE_SIZE, start[1] // TILE_SIZE)
-        goal = (goal[0] // TILE_SIZE, goal[1] // TILE_SIZE)
+        import heapq
+        open_set = [(0, start)]
+        came_from = {}
+        g_score = {start: 0}
 
-        if not self.is_walkable(*start) or not self.is_walkable(*goal):
-            return []
-
-        frontier = [(0, start)]
-        came_from = {start: None}
-        cost_so_far = {start: 0}
-
-        while frontier:
-            _, current = heapq.heappop(frontier)
+        while open_set:
+            _, current = heapq.heappop(open_set)
 
             if current == goal:
-                break
+                path = []
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.reverse()
+                return path
 
-            for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
-                next_node = (current[0] + dx, current[1] + dy)
-                if not self.is_walkable(*next_node):
-                    continue
+            for neighbor in self.neighbors(*current):
+                tentative_g = g_score[current] + 1
+                if neighbor not in g_score or tentative_g < g_score[neighbor]:
+                    came_from[neighbor] = current
+                    g_score[neighbor] = tentative_g
+                    f_score = tentative_g + self.heuristic(neighbor, goal)
+                    heapq.heappush(open_set, (f_score, neighbor))
 
-                new_cost = cost_so_far[current] + 1
-                if next_node not in cost_so_far or new_cost < cost_so_far[next_node]:
-                    cost_so_far[next_node] = new_cost
-                    priority = new_cost + heuristic(goal, next_node)
-                    heapq.heappush(frontier, (priority, next_node))
-                    came_from[next_node] = current
+        return []
 
-        path = []
-        current = goal
-        while current in came_from and current != start:
-            path.append((current[0] * TILE_SIZE + TILE_SIZE // 2, current[1] * TILE_SIZE + TILE_SIZE // 2))
-            current = came_from[current]
-        path.reverse()
-        return path
+    def draw(self, screen):
+        for rect in self.obstacles:
+            if isinstance(rect, pygame.Rect):
+                pygame.draw.rect(screen, (100, 100, 100), rect)
