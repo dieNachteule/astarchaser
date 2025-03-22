@@ -20,13 +20,13 @@ class Bullet:
     def draw(self, screen):
         pygame.draw.circle(screen, (255, 255, 0), (int(self.x), int(self.y)), self.radius)
 
-    def is_off_screen(self):
-        return self.x < 0 or self.x > 800 or self.y < 0 or self.y > 600
+    def is_off_screen(self, screen_width=800, screen_height=600):
+        return self.x < 0 or self.x > screen_width or self.y < 0 or self.y > screen_height
 
     def collides_with(self, obj):
         dx = self.x - obj.x
         dy = self.y - obj.y
-        return math.hypot(dx, dy) < self.radius + 10
+        return math.hypot(dx, dy) < self.radius + getattr(obj, 'radius', 10)
 
     def reflect_from_shield(self, shield_angle):
         incoming = pygame.math.Vector2(self.velocity_x, self.velocity_y)
